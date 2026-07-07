@@ -3,13 +3,18 @@ package com.thunder.ktvboss.ui
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.OvershootInterpolator
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.thunder.ktvboss.audio.AudioInputSampler
@@ -36,6 +41,11 @@ class BattleFragment : Fragment() {
     private var battleEnded = false
     private var latestVolume = 0
     private var sampler: AudioInputSampler? = null
+    private var lastBossHp: Int? = null
+    private var lastPlayerHp: Int? = null
+    private var lastTotalDamage: Int? = null
+    private var lastCombo: Int? = null
+    private var ultimateShowing = false
 
     private val battleLoop = object : Runnable {
         override fun run() {
@@ -77,6 +87,12 @@ class BattleFragment : Fragment() {
         binding.btnEndNow.setOnClickListener {
             finishBattle(SystemClock.elapsedRealtime() - battleStartTime)
         }
+        binding.vHitFlash.alpha = 0f
+        binding.tvDamagePop.alpha = 0f
+        binding.tvDamagePop.visibility = View.INVISIBLE
+        binding.tvComboBurst.alpha = 0f
+        binding.tvComboBurst.visibility = View.INVISIBLE
+        binding.ultimateOverlay.visibility = View.GONE
     }
 
     override fun onResume() {
@@ -96,6 +112,11 @@ class BattleFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        binding.battleStage.animate().cancel()
+        binding.vHitFlash.animate().cancel()
+        binding.tvDamagePop.animate().cancel()
+        binding.tvComboBurst.animate().cancel()
+        binding.ultimateOverlay.animate().cancel()
         _binding = null
     }
 
@@ -125,6 +146,11 @@ class BattleFragment : Fragment() {
     }
 
     private fun render(snapshot: BattleSnapshot, elapsedMs: Long) {
+        val bossHpDelta = lastBossHp?.let { it - snapshot.bossHp } ?: 0
+        val playerHpDelta = lastPlayerHp?.let { it - snapshot.playerHp } ?: 0
+        val damageDelta = lastTotalDamage?.let { snapshot.totalDamage - it } ?: 0
+        val comboDelta = lastCombo?.let { snapshot.combo - it } ?: 0
+
         binding.tvBossName.text = snapshot.bossName
         binding.tvSegment.text = snapshot.segmentName
         binding.progressBoss.max = snapshot.bossHpMax
@@ -140,6 +166,217 @@ class BattleFragment : Fragment() {
         binding.tvMessage.text = snapshot.message
         binding.tvTimer.text = formatTimeLeft(elapsedMs)
         binding.tvUltimate.visibility = if (snapshot.isUltimate) View.VISIBLE else View.INVISIBLE
+
+        if (bossHpDelta > 0 || damageDelta > 0) {
+            val critical = snapshot.volumeLevel >= 70 || snapshot.segmentName == "高潮爆发"
+            playHitFx(damageDelta.takeIf { it > 0 } ?: bossHpDelta, critical = critical)
+        }
+
+        if (playerHpDelta > 0) {
+            playHurtFx()
+        }
+
+        if (comboDelta > 0 && snapshot.combo >= 8 && snapshot.combo % 8 == 0) {
+            playComboBurst(snapshot.combo)
+        }
+
+        if (snapshot.isUltimate && !ultimateShowing) {
+            playUltimateFx()
+        }
+
+        lastBossHp = snapshot.bossHp
+        lastPlayerHp = snapshot.playerHp
+        lastTotalDamage = snapshot.totalDamage
+        lastCombo = snapshot.combo
+    }
+
+    private fun playHitFx(damage: Int, critical: Boolean) {
+        flash(critical)
+        shake(
+            amplitudeDp = if (critical) 10f else 6f,
+            cycles = if (critical) 8 else 6,
+            durationMs = if (critical) 240L else 180L
+        )
+        showDamage(damage, critical)
+        binding.battleStage.performHapticFeedback(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                HapticFeedbackConstants.REJECT
+            } else {
+                HapticFeedbackConstants.KEYBOARD_TAP
+            }
+        )
+    }
+
+    private fun playHurtFx() {
+        flash(critical = false, alphaPeak = 0.26f)
+        shake(amplitudeDp = 12f, cycles = 10, durationMs = 260L)
+    }
+
+    private fun playComboBurst(combo: Int) {
+        val tv = binding.tvComboBurst
+        tv.text = "COMBO x$combo"
+        tv.visibility = View.VISIBLE
+        tv.alpha = 0f
+        tv.scaleX = 0.88f
+        tv.scaleY = 0.88f
+        tv.animate().cancel()
+        tv.animate()
+            .alpha(1f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(180L)
+            .setInterpolator(OvershootInterpolator(0.9f))
+            .withEndAction {
+                tv.animate()
+                    .alpha(0f)
+                    .translationYBy(-18f)
+                    .setDuration(360L)
+                    .setInterpolator(DecelerateInterpolator())
+                    .withEndAction {
+                        tv.translationY = 0f
+                        tv.visibility = View.INVISIBLE
+                    }
+                    .start()
+            }
+            .start()
+    }
+
+    private fun playUltimateFx() {
+        ultimateShowing = true
+        val overlay = binding.ultimateOverlay
+        overlay.visibility = View.VISIBLE
+        overlay.alpha = 0f
+        overlay.scaleX = 1.02f
+        overlay.scaleY = 1.02f
+
+        binding.tvUltimateTitle.apply {
+            alpha = 0f
+            scaleX = 0.86f
+            scaleY = 0.86f
+        }
+        binding.tvUltimateSub.alpha = 0f
+
+        overlay.animate().cancel()
+        overlay.animate()
+            .alpha(1f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(160L)
+            .setInterpolator(DecelerateInterpolator())
+            .withEndAction {
+                binding.tvUltimateTitle.animate()
+                    .alpha(1f)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(220L)
+                    .setInterpolator(OvershootInterpolator(0.9f))
+                    .start()
+                binding.tvUltimateSub.animate()
+                    .alpha(1f)
+                    .setStartDelay(90L)
+                    .setDuration(220L)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+            }
+            .start()
+
+        mainHideUltimate(520L)
+    }
+
+    private fun mainHideUltimate(delayMs: Long) {
+        battleHandler.postDelayed({
+            if (_binding == null) return@postDelayed
+            val overlay = binding.ultimateOverlay
+            overlay.animate().cancel()
+            overlay.animate()
+                .alpha(0f)
+                .setDuration(220L)
+                .setInterpolator(AccelerateDecelerateInterpolator())
+                .withEndAction {
+                    overlay.visibility = View.GONE
+                    overlay.alpha = 1f
+                    ultimateShowing = false
+                }
+                .start()
+        }, delayMs)
+    }
+
+    private fun flash(critical: Boolean, alphaPeak: Float = if (critical) 0.44f else 0.28f) {
+        val v = binding.vHitFlash
+        v.animate().cancel()
+        v.alpha = 0f
+        v.animate()
+            .alpha(alphaPeak)
+            .setDuration(60L)
+            .withEndAction {
+                v.animate()
+                    .alpha(0f)
+                    .setDuration(160L)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+            }
+            .start()
+    }
+
+    private fun showDamage(damage: Int, critical: Boolean) {
+        val tv = binding.tvDamagePop
+        tv.text = if (critical) "暴击 -$damage" else "-$damage"
+        tv.visibility = View.VISIBLE
+        tv.alpha = 0f
+        tv.translationY = 18f
+        tv.scaleX = if (critical) 1.08f else 1.02f
+        tv.scaleY = if (critical) 1.08f else 1.02f
+        tv.animate().cancel()
+        tv.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(120L)
+            .setInterpolator(OvershootInterpolator(0.8f))
+            .withEndAction {
+                tv.animate()
+                    .alpha(0f)
+                    .translationYBy(-24f)
+                    .setDuration(260L)
+                    .setInterpolator(DecelerateInterpolator())
+                    .withEndAction {
+                        tv.translationY = 0f
+                        tv.visibility = View.INVISIBLE
+                    }
+                    .start()
+            }
+            .start()
+    }
+
+    private fun shake(amplitudeDp: Float, cycles: Int, durationMs: Long) {
+        val stage = binding.battleStage
+        stage.animate().cancel()
+        val amplitudePx = dp(amplitudeDp)
+        val start = SystemClock.elapsedRealtime()
+
+        val runnable = object : Runnable {
+            override fun run() {
+                if (_binding == null) return
+                val elapsed = SystemClock.elapsedRealtime() - start
+                val t = (elapsed.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+                val damping = 1f - t
+                val angle = t * cycles * 2f * Math.PI.toFloat()
+                stage.translationX = (kotlin.math.sin(angle) * amplitudePx * damping)
+                stage.translationY = (kotlin.math.sin(angle * 1.3f) * amplitudePx * 0.6f * damping)
+                if (t < 1f) {
+                    battleHandler.postDelayed(this, 16L)
+                } else {
+                    stage.translationX = 0f
+                    stage.translationY = 0f
+                }
+            }
+        }
+        battleHandler.post(runnable)
+    }
+
+    private fun dp(value: Float): Float {
+        return value * resources.displayMetrics.density
     }
 
     private fun formatTimeLeft(elapsedMs: Long): String {
