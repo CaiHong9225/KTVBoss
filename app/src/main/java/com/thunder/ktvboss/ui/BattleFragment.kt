@@ -18,10 +18,12 @@ import android.view.animation.OvershootInterpolator
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.thunder.ktvboss.audio.AudioInputSampler
+import com.thunder.ktvboss.boss.BossSession
 import com.thunder.ktvboss.databinding.FragmentBattleBinding
 import com.thunder.ktvboss.logic.BattleEngine
 import com.thunder.ktvboss.model.BattleResult
 import com.thunder.ktvboss.model.BattleSnapshot
+import com.thunder.ktvboss.net.RemoteImageLoader
 import kotlin.math.sin
 
 class BattleFragment : Fragment() {
@@ -87,6 +89,10 @@ class BattleFragment : Fragment() {
         binding.btnEndNow.setOnClickListener {
             finishBattle(SystemClock.elapsedRealtime() - battleStartTime)
         }
+
+        val boss = BossSession.current()
+        RemoteImageLoader.load(boss.imageUrl, binding.ivBossAvatarBattle)
+
         binding.vHitFlash.alpha = 0f
         binding.vWhiteFlash.alpha = 0f
         binding.vBossFlash.alpha = 0f

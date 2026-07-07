@@ -89,9 +89,19 @@
                     android:orientation="vertical"
                     android:padding="24dp">
 
+                    <ImageView
+                        android:id="@+id/ivBossAvatarBattle"
+                        android:layout_width="match_parent"
+                        android:layout_height="180dp"
+                        android:background="@drawable/bg_boss_avatar"
+                        android:contentDescription="@string/app_name"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/bg_boss_placeholder" />
+
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
                         android:text="BOSS 立场"
                         android:textColor="@color/text_secondary"
                         android:textSize="16sp" />

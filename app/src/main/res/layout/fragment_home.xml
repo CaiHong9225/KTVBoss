@@ -47,6 +47,7 @@
                 android:orientation="vertical">
 
                 <TextView
+                    android:id="@+id/tvBossTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Boss：噪音吞噬者"
@@ -63,15 +64,14 @@
                     android:textSize="18sp" />
             </LinearLayout>
 
-            <TextView
+            <ImageView
+                android:id="@+id/ivBossAvatar"
                 android:layout_width="240dp"
                 android:layout_height="240dp"
-                android:background="@drawable/bg_primary_button"
-                android:gravity="center"
-                android:text="BOSS"
-                android:textColor="@android:color/white"
-                android:textSize="44sp"
-                android:textStyle="bold" />
+                android:background="@drawable/bg_boss_avatar"
+                android:contentDescription="@string/app_name"
+                android:scaleType="centerCrop"
+                android:src="@drawable/bg_boss_placeholder" />
         </LinearLayout>
 
         <LinearLayout

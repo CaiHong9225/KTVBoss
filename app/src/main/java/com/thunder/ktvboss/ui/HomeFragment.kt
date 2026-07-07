@@ -7,7 +7,9 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
+import com.thunder.ktvboss.boss.BossSession
 import com.thunder.ktvboss.databinding.FragmentHomeBinding
+import com.thunder.ktvboss.net.RemoteImageLoader
 
 class HomeFragment : Fragment() {
 
@@ -38,6 +40,11 @@ class HomeFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         val showRules = arguments?.getBoolean(ARG_SHOW_RULES) ?: false
         binding.rulesContent.visibility = if (showRules) View.VISIBLE else View.GONE
+
+        val boss = BossSession.current()
+        binding.tvBossTitle.text = "Boss：${boss.name}"
+        RemoteImageLoader.load(boss.imageUrl, binding.ivBossAvatar)
+
         binding.btnStart.setOnClickListener { listener?.onStartChallenge() }
         binding.btnRules.setOnClickListener { listener?.onOpenRules() }
         binding.btnStart.requestFocus()
