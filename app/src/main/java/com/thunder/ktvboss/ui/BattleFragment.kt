@@ -90,6 +90,12 @@ class BattleFragment : Fragment() {
         binding.vHitFlash.alpha = 0f
         binding.vWhiteFlash.alpha = 0f
         binding.vBossFlash.alpha = 0f
+        binding.vSlash1.alpha = 0f
+        binding.vSlash1.visibility = View.INVISIBLE
+        binding.vSlash2.alpha = 0f
+        binding.vSlash2.visibility = View.INVISIBLE
+        binding.vSlash3.alpha = 0f
+        binding.vSlash3.visibility = View.INVISIBLE
         binding.tvDamagePop.alpha = 0f
         binding.tvDamagePop.visibility = View.INVISIBLE
         binding.tvComboBurst.alpha = 0f
@@ -116,6 +122,11 @@ class BattleFragment : Fragment() {
         super.onDestroyView()
         binding.battleStage.animate().cancel()
         binding.vHitFlash.animate().cancel()
+        binding.vWhiteFlash.animate().cancel()
+        binding.vBossFlash.animate().cancel()
+        binding.vSlash1.animate().cancel()
+        binding.vSlash2.animate().cancel()
+        binding.vSlash3.animate().cancel()
         binding.tvDamagePop.animate().cancel()
         binding.tvComboBurst.animate().cancel()
         binding.ultimateOverlay.animate().cancel()
@@ -195,6 +206,9 @@ class BattleFragment : Fragment() {
     private fun playHitFx(damage: Int, critical: Boolean) {
         flash(critical)
         bossFlash(critical)
+        if (critical) {
+            playCriticalSlashes()
+        }
         shake(
             amplitudeDp = if (critical) 10f else 6f,
             cycles = if (critical) 8 else 6,
@@ -338,6 +352,47 @@ class BattleFragment : Fragment() {
                     .start()
             }
             .start()
+    }
+
+    private fun playCriticalSlashes() {
+        val dir = if (((SystemClock.elapsedRealtime() / 180L) % 2L) == 0L) 1f else -1f
+        val startX = -dir * dp(240f)
+        val endX = dir * dp(280f)
+
+        val slashes = listOf(binding.vSlash1, binding.vSlash2, binding.vSlash3)
+        for (index in slashes.indices) {
+            val v = slashes[index]
+            v.animate().cancel()
+            v.visibility = View.VISIBLE
+            v.alpha = 0f
+            v.translationX = startX
+            v.translationY = dp((index - 1) * 92f)
+            v.scaleX = 0.96f
+            v.scaleY = 0.96f
+            v.animate()
+                .alpha(0.95f)
+                .translationX(startX + dir * dp(42f))
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(90L)
+                .setInterpolator(DecelerateInterpolator())
+                .withEndAction {
+                    v.animate()
+                        .alpha(0f)
+                        .translationX(endX)
+                        .translationYBy(-dp(26f))
+                        .setDuration(230L)
+                        .setInterpolator(AccelerateDecelerateInterpolator())
+                        .withEndAction {
+                            v.translationX = 0f
+                            v.translationY = 0f
+                            v.visibility = View.INVISIBLE
+                        }
+                        .start()
+                }
+                .setStartDelay((index * 28).toLong())
+                .start()
+        }
     }
 
     private fun whiteFlash() {
