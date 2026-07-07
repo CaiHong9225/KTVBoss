@@ -88,6 +88,8 @@ class BattleFragment : Fragment() {
             finishBattle(SystemClock.elapsedRealtime() - battleStartTime)
         }
         binding.vHitFlash.alpha = 0f
+        binding.vWhiteFlash.alpha = 0f
+        binding.vBossFlash.alpha = 0f
         binding.tvDamagePop.alpha = 0f
         binding.tvDamagePop.visibility = View.INVISIBLE
         binding.tvComboBurst.alpha = 0f
@@ -192,6 +194,7 @@ class BattleFragment : Fragment() {
 
     private fun playHitFx(damage: Int, critical: Boolean) {
         flash(critical)
+        bossFlash(critical)
         shake(
             amplitudeDp = if (critical) 10f else 6f,
             cycles = if (critical) 8 else 6,
@@ -296,6 +299,7 @@ class BattleFragment : Fragment() {
                     overlay.visibility = View.GONE
                     overlay.alpha = 1f
                     ultimateShowing = false
+                    whiteFlash()
                 }
                 .start()
         }, delayMs)
@@ -312,6 +316,41 @@ class BattleFragment : Fragment() {
                 v.animate()
                     .alpha(0f)
                     .setDuration(160L)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+            }
+            .start()
+    }
+
+    private fun bossFlash(critical: Boolean) {
+        val v = binding.vBossFlash
+        v.animate().cancel()
+        v.alpha = 0f
+        val peak = if (critical) 0.38f else 0.22f
+        v.animate()
+            .alpha(peak)
+            .setDuration(60L)
+            .withEndAction {
+                v.animate()
+                    .alpha(0f)
+                    .setDuration(140L)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+            }
+            .start()
+    }
+
+    private fun whiteFlash() {
+        val v = binding.vWhiteFlash
+        v.animate().cancel()
+        v.alpha = 0f
+        v.animate()
+            .alpha(0.75f)
+            .setDuration(70L)
+            .withEndAction {
+                v.animate()
+                    .alpha(0f)
+                    .setDuration(220L)
                     .setInterpolator(DecelerateInterpolator())
                     .start()
             }
