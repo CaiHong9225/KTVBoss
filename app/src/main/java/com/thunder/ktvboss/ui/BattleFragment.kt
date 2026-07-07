@@ -18,6 +18,7 @@ import android.view.animation.OvershootInterpolator
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.thunder.ktvboss.audio.AudioInputSampler
+import com.thunder.ktvboss.audio.DemoBgmPlayer
 import com.thunder.ktvboss.boss.BossSession
 import com.thunder.ktvboss.databinding.FragmentBattleBinding
 import com.thunder.ktvboss.logic.BattleEngine
@@ -134,9 +135,11 @@ class BattleFragment : Fragment() {
         binding.vSlash1.animate().cancel()
         binding.vSlash2.animate().cancel()
         binding.vSlash3.animate().cancel()
+        binding.tvBattleBanner.animate().cancel()
         binding.tvDamagePop.animate().cancel()
         binding.tvComboBurst.animate().cancel()
         binding.ultimateOverlay.animate().cancel()
+        DemoBgmPlayer.stop()
         _binding = null
     }
 
@@ -146,6 +149,7 @@ class BattleFragment : Fragment() {
         battleEnded = false
         latestVolume = 0
 
+        DemoBgmPlayer.start(requireContext())
         if (hasAudioPermission()) {
             sampler = AudioInputSampler(requireContext()) { latestVolume = it }.also { it.start() }
         }
@@ -155,6 +159,7 @@ class BattleFragment : Fragment() {
     private fun stopBattleLoop() {
         sampler?.stop()
         sampler = null
+        DemoBgmPlayer.stop()
         battleHandler.removeCallbacksAndMessages(null)
     }
 
@@ -162,7 +167,12 @@ class BattleFragment : Fragment() {
         if (battleEnded) return
         battleEnded = true
         stopBattleLoop()
-        listener?.onBattleFinished(engine.buildResult(elapsedMs))
+        val result = engine.buildResult(elapsedMs)
+        showFinishBanner(result.victory)
+        battleHandler.postDelayed({
+            if (_binding == null) return@postDelayed
+            listener?.onBattleFinished(result)
+        }, 650L)
     }
 
     private fun render(snapshot: BattleSnapshot, elapsedMs: Long) {
@@ -478,6 +488,36 @@ class BattleFragment : Fragment() {
 
     private fun dp(value: Float): Float {
         return value * resources.displayMetrics.density
+    }
+
+    private fun showFinishBanner(victory: Boolean) {
+        val tv = binding.tvBattleBanner
+        tv.text = if (victory) "击败BOSS" else "BOSS反击"
+        tv.visibility = View.VISIBLE
+        tv.alpha = 0f
+        tv.scaleX = 0.86f
+        tv.scaleY = 0.86f
+        tv.animate().cancel()
+        tv.animate()
+            .alpha(1f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .setDuration(200L)
+            .setInterpolator(OvershootInterpolator(0.95f))
+            .withEndAction {
+                tv.animate()
+                    .alpha(0f)
+                    .translationYBy(-18f)
+                    .setStartDelay(360L)
+                    .setDuration(220L)
+                    .setInterpolator(DecelerateInterpolator())
+                    .withEndAction {
+                        tv.translationY = 0f
+                        tv.visibility = View.GONE
+                    }
+                    .start()
+            }
+            .start()
     }
 
     private fun formatTimeLeft(elapsedMs: Long): String {

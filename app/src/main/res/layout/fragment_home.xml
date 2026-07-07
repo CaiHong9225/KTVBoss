@@ -69,8 +69,9 @@
                 android:layout_width="240dp"
                 android:layout_height="240dp"
                 android:background="@drawable/bg_boss_avatar"
+                android:clipToOutline="true"
                 android:contentDescription="@string/app_name"
-                android:scaleType="centerCrop"
+                android:scaleType="fitCenter"
                 android:src="@drawable/bg_boss_placeholder" />
         </LinearLayout>
 
