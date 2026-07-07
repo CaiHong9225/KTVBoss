@@ -43,7 +43,8 @@ class HomeFragment : Fragment() {
 
         val boss = BossSession.current()
         binding.tvBossTitle.text = "Boss：${boss.name}"
-        RemoteImageLoader.load(boss.imageUrl, binding.ivBossAvatar)
+        binding.ivBossAvatar.setImageResource(boss.localResId)
+        boss.imageUrl?.let { RemoteImageLoader.load(it, binding.ivBossAvatar) }
 
         binding.btnStart.setOnClickListener { listener?.onStartChallenge() }
         binding.btnRules.setOnClickListener { listener?.onOpenRules() }

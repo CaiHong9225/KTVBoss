@@ -91,7 +91,8 @@ class BattleFragment : Fragment() {
         }
 
         val boss = BossSession.current()
-        RemoteImageLoader.load(boss.imageUrl, binding.ivBossAvatarBattle)
+        binding.ivBossAvatarBattle.setImageResource(boss.localResId)
+        boss.imageUrl?.let { RemoteImageLoader.load(it, binding.ivBossAvatarBattle) }
 
         binding.vHitFlash.alpha = 0f
         binding.vWhiteFlash.alpha = 0f
